@@ -13,49 +13,62 @@ bot = telebot.TeleBot(token)
 
 # --- BOT MESSAGE ---------------------------------------------------
 
+@bot.message_handler(commands=['start'])
+def command_start(message):
+    bot.send_message(message.chat.id, 'Команда СТАРТ!')
+
+@bot.message_handler(commands=['stop'])
+def command_start(message):
+    bot.send_message(message.chat.id, 'Команда СТОП!')
 
 
-@bot.message_handler(commands=['start', 'stop', 'b', ''])
-def bot_commands(message):
+@bot.message_handler(commands=['open', 'close'])
+def commands_open_close(message):
     mes = ''
 
-    if message.text == '/start':
-        mes = 'почати'
-    elif message.text == '/stop':
-        mes = 'зупинити'
-    elif message.text == '/b':
-        bot_buttons(message)
-        return True
+    if message.text == '/open':
+        mes = 'Відкрито'
+    elif message.text == '/close':
+        mes = 'Закрито'
 
     bot.send_message(message.chat.id, mes)
+
+@bot.message_handler(commands=['key'])
+def key_go(message):
+    keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    button_1 = types.KeyboardButton(text='Кнопка 1')
+    button_2 = types.KeyboardButton(text='Кнопка 2')
+    keyboard.add(button_1, button_2)
+
+    bot.send_message(message.chat.id, 'Кнопку натиснуто', reply_markup=keyboard)
+
+
+@bot.message_handler(func=lambda message: message.text == 'Кнопка 1')
+def handle_button_1(message):
+    bot.send_message(message.chat.id, 'Ви натиснули кнопку 1.')
+
+@bot.message_handler(func=lambda message: message.text == 'Кнопка 2')
+def handle_button_2(message):
+    bot.send_message(message.chat.id, 'Ви натиснули кнопку 2.')
+
+@bot.message_handler(content_types=['sticker'])
+def handle_sticker(message):
+    sticker_id = message.sticker.file_id
+    emoji = message.sticker.emoji
+
+    bot.reply_to(message, f"Ви надіслали стікер з емодзі {emoji} (ID: {sticker_id})")
 
 @bot.message_handler(content_types=['text'])
 def bot_message(message):
-    mes = message.text + ' - !'
-    if message.text == 'Саня підор':
-        mes = 'Іди нахуй'
-    elif message.text == 'Тімур підор':
-        mes = 'Звісно'
 
+    if message.text == '1':
+        bot.send_sticker(message.shat.id, stickers[0])
+        return True
+
+    mes = message.text + ' - !'
     bot.send_message(message.chat.id, mes)
 
-def bot_buttons(message):
-    keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True)
 
-    btn1 = types.KeyboardButton(text='/start')
-    btn2 = types.KeyboardButton(text='/stop')
-    btn3 = types.KeyboardButton(text='/b')
-
-    keyboard.add(btn1, btn2, btn3)
-
-    mes = bot.send_message(message.chat.id, message.text, reply_markup=keyboard)
-    bot.register_next_step_handler(msg, button_if)
-
-def button_if(message):
-    if message.text == '':
-        bot.send_message(message.chat.id, 'Кнопка')
-    if message.text == '':
-        bot.send_message(message.chat.id, 'Кнопка')
 
 if __name__ == '__main__':
     bot.polling()
