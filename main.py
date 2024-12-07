@@ -1,74 +1,74 @@
 import telebot
 from telebot import types
+import os
 
-token = '7724717353:AAH1itkQBgSDAYcMHS402kXqqE7LLcryJSE'
+token = "7724717353:AAH1itkQBgSDAYcMHS402kXqqE7LLcryJSE"
 bot = telebot.TeleBot(token)
-# створюємо об'єкт клавіатури.
-# my_buttons = types.ReplyKeyboardMarkup()
-# створюємо окрему кнопку.
-# btn1 = types.KeyboardButton('Кнопка 1')
-# btn2 = types.KeyboardButton('Кнопка 2')
-# додаємо кнопки до клавіатури.
-# my_buttons.add(btn1, btn2)
 
-# --- BOT MESSAGE ---------------------------------------------------
+list_sticker = ['CAACAgIAAxkBAAO3Z0iqLLOSpaCz8_EVHM7uWxrxLD4AAgUAA8A2TxP5al-agmtNdTYE']
 
+
+# --- commands ----------------------------------------------------------------
 @bot.message_handler(commands=['start'])
-def command_start(message):
-    bot.send_message(message.chat.id, 'Команда СТАРТ!')
+def bot_start(message):
+    bot.send_message(message.chat.id, ' Start!')
+
 
 @bot.message_handler(commands=['stop'])
-def command_start(message):
-    bot.send_message(message.chat.id, 'Команда СТОП!')
+def bot_stop(message):
+    bot.send_message(message.chat.id, 'Stop!')
 
-
-@bot.message_handler(commands=['open', 'close'])
-def commands_open_close(message):
-    mes = ''
-
-    if message.text == '/open':
-        mes = 'Відкрито'
-    elif message.text == '/close':
-        mes = 'Закрито'
-
-    bot.send_message(message.chat.id, mes)
 
 @bot.message_handler(commands=['key'])
-def key_go(message):
+def key_function(message):
     keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True)
-    button_1 = types.KeyboardButton(text='Кнопка 1')
-    button_2 = types.KeyboardButton(text='Кнопка 2')
+    button_1 = types.KeyboardButton(text='button 1')
+    button_2 = types.KeyboardButton(text='button 2')
     keyboard.add(button_1, button_2)
 
-    bot.send_message(message.chat.id, 'Кнопку натиснуто', reply_markup=keyboard)
+    msg = bot.send_message(message.chat.id, message.text + 'Key!', reply_markup=keyboard)
+    bot.register_next_step_handler(msg, bot_button_function)
 
-
-@bot.message_handler(func=lambda message: message.text == 'Кнопка 1')
-def handle_button_1(message):
-    bot.send_message(message.chat.id, 'Ви натиснули кнопку 1.')
-
-@bot.message_handler(func=lambda message: message.text == 'Кнопка 2')
-def handle_button_2(message):
-    bot.send_message(message.chat.id, 'Ви натиснули кнопку 2.')
 
 @bot.message_handler(content_types=['sticker'])
 def handle_sticker(message):
+    # print(message.sticker)
+    # Отримуємо інформацію про стікер
     sticker_id = message.sticker.file_id
     emoji = message.sticker.emoji
+    bot.reply_to(message, f"Ви надіслали стікер з емоджі {emoji} (ID: {sticker_id})")
 
-    bot.reply_to(message, f"Ви надіслали стікер з емодзі {emoji} (ID: {sticker_id})")
 
+@bot.message_handler(commands=['send_sticker'])
+def my_send_sticker(message):
+    bot.send_sticker(message.chat.id, list_sticker[0])
+
+
+# --- content_types = text ----------------------------------------------------
 @bot.message_handler(content_types=['text'])
-def bot_message(message):
+def bot_message_text(message):
+    if message.text == 'dog':
+        current_file_path = os.path.abspath(__file__)
+        current_directory = os.path.dirname(current_file_path)
+        my_file_directory = os.path.join(current_directory, 'sticker', 'dog.webm')
 
-    if message.text == '1':
-        bot.send_sticker(message.shat.id, stickers[0])
-        return True
+        with open(my_file_directory, "rb") as sticker:
+            bot.send_sticker(message.chat.id, sticker)
 
-    mes = message.text + ' - !'
-    bot.send_message(message.chat.id, mes)
+    else:
+        # print(message)
+        bot.send_message(message.chat.id, message.text + '... Text work!')
 
+
+# --- functions ---------------------------------------------------------------
+def bot_button_function(message):
+    if message.text == 'button 1':
+        bot.send_message(message.chat.id, '1')
+    elif message.text == 'button 2':
+        bot.send_message(message.chat.id, '2')
+    else:
+        bot.send_message(message.chat.id, 'none')
 
 
 if __name__ == '__main__':
-    bot.polling()
+    bot.infinity_polling()

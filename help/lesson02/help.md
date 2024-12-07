@@ -1,5 +1,7 @@
 # Заняття 2
 
+### Обробка повідомлень, клавіатура
+
 ### [&#8678; Зміст](../index.md)
 
 ---
@@ -114,3 +116,25 @@ def start(message):
 
 bot.polling()
 ```
+
+#### Опрацювання натиснутої кнопки
+
+```python
+@bot.message_handler(commands=['start'])
+def botbutton(message):
+    my_buttons = types.ReplyKeyboardMarkup()
+    btn1 = types.KeyboardButton('Кнопка 1')
+    btn2 = types.KeyboardButton('Кнопка 2')
+    my_buttons.add(btn1, btn2)
+
+    msg = bot.send_message(message.chat.id, message.text + ' .. Працює!', reply_markup=my_buttons)
+    # Реєструємо функцію my_bot_message яка спрацює після (натискання кнопки) отримання сповіщення 
+    bot.register_next_step_handler(msg, my_bot_message)
+
+def my_bot_message(message):
+    if message.text == 'Кнопка 1':
+        bot.send_message(message.chat.id, 'натиснута кнопка 1')
+    elif message.text == 'Кнопка 2':
+        bot.send_message(message.chat.id, 'натиснута кнопка 2')
+```
+
