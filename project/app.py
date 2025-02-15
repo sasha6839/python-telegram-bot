@@ -1,3 +1,5 @@
+from pickletools import read_int4
+
 import config as c
 import telebot
 import threading
@@ -67,7 +69,6 @@ bot = telebot.TeleBot(c.BOT_TOKEN)
 
 
 def bot_start(message):
-    print(message.chat.id)
     db = sqlite3.connect(c.DB_NAME)
     cur = db.cursor()
 
@@ -75,20 +76,22 @@ def bot_start(message):
     row = cur.fetchone()
 
     if not row:
-        cur.execute(f"INSERT INTO users (chat_id, username) VALUES ('{message.chat.id}', '{message.from_user.username}')")
+        cur.execute(f"INSERT INTO users (chat_id, name) VALUES ('{message.chat.id}', '{message.from_user.username}')")
         db.commit()
-        bot.send_message(message.chat.id, "Користувача додано")
+        bot.send_message(message.chat.id, 'Вас додано до цього бота!')
     else:
-        bot.send_message(message.chat.id, "Ви вже підписані на цього бота")
+        bot.send_message(message.chat.id, 'Ви вже підписані на цього бота.')
+
 
 def add_note(message):
-    bot.send_message(message.chat.id, "Введіть нотатку: ")
+    bot.send_message(message.chat.id, "Введіть нотатку:")
     bot.register_next_step_handler_by_chat_id(message.chat.id, save_note)
 
+
 def save_note(message):
+    # 1 з можливих варіантів реалізації коду (4 з 10)
     db = sqlite3.connect(c.DB_NAME)
     cur = db.cursor()
-
     cur.execute("SELECT id FROM users WHERE chat_id='%d'" % message.chat.id)
     row = cur.fetchone()
 
@@ -98,6 +101,10 @@ def save_note(message):
         db.commit()
 
         bot.send_message(message.chat.id, 'Нотатку збережено')
+
+    cur.close()
+    db.close()
+
 
 def show_all_notes(message):
     db = sqlite3.connect(c.DB_NAME)
@@ -111,25 +118,50 @@ def show_all_notes(message):
 
         notes = 'Список нотаток:\n\n'
         for r in rows:
-            notes += f"/open_{r[0]}) {r[1]}. [{r[2]}]\n"
+            notes += f"/open_{r[0]}: {r[1]}. [{r[2]}]\n"
 
         bot.send_message(message.chat.id, notes)
 
+    cur.close()
+    db.close()
+
+
 def open_note(message, note_id):
     keyboard = InlineKeyboardMarkup()
-    b1 = InlineKeyboardButton('Нотатку', callback_data='/edit_' + note_id)
-    b2 = InlineKeyboardButton('Час', callback_data='/time_' + note_id)
-    b3 = InlineKeyboardButton('Видалити', callback_data='/delete_' + note_id)
+    b1 = InlineKeyboardButton('Нотатку', callback_data='edit_' + note_id)
+    b2 = InlineKeyboardButton('Час', callback_data='time_' + note_id)
+    b3 = InlineKeyboardButton('Видалити', callback_data='delete_' + note_id)
     keyboard.add(b1, b2)
     keyboard.add(b3)
 
-    bot.send_message(message.chat.id, f'[{note_id}]Редагувати:', reply_markup=keyboard)
+    bot.send_message(message.chat.id, f'[{note_id}] Редагувати:', reply_markup=keyboard)
 
-def edit_note(message, note_id):
-    pass
+
+def edit_note(call, note_id):
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+
+    bot.send_message(call.message.chat.id, 'Введіть новий текст:')
+    bot.register_next_step_handler_by_chat_id(call.message.chat.id, edit_and_save_note, note_id)
+
+
+def edit_and_save_note(message, note_id):
+    db = sqlite3.connect(c.DB_NAME)
+    cur = db.cursor()
+    cur.execute("UPDATE notes SET title=? WHERE id=?", (message.text, note_id))
+    db.commit()
+
+    if cur.rowcount > 0:
+        bot.send_message(message.chat.id, 'Нотатка оновлена!')
+    else:
+        bot.send_message(message.chat.id, 'Щось пішло не так :(')
+
+    cur.close()
+    db.close()
+
 
 def time_note(message, note_id):
     pass
+
 
 def delete_note(call, note_id):
     db = sqlite3.connect(c.DB_NAME)
@@ -140,29 +172,49 @@ def delete_note(call, note_id):
     if cur.rowcount > 0:
         bot.send_message(call.message.chat.id, 'Нотатка видалена!')
     else:
-        bot.send_message(call.message.chat.id, 'Помилка видалення >:(')
+        bot.send_message(call.message.chat.id, 'Помилка видалення :(')
 
     cur.close()
     db.close()
 
+# === HANDLER =================================================================
+
+# start - підписка
+# add - додати
+# all - показати всі
+# end - відписатися
 
 
-# HANDLER
+# Обробник команд від користувача
+@bot.message_handler(commands=['start', 'add', 'all', 'day', 'end'])
+def handler_commands(message):
+    if '/start' == message.text:
+        bot_start(message)
+    elif '/add' == message.text:
+        add_note(message)
+    elif '/all' == message.text:
+        show_all_notes(message)
+    elif '/day' == message.text:
+        pass
+    elif '/end' == message.text:
+        pass
+
+
 @bot.message_handler(regexp=r"^\/open_\d+$")
 def handler_open_id(message):
-
     values = message.text.split('_')
     open_note(message, values[1])
+
 
 @bot.callback_query_handler(func=lambda call: True)
 def handler_note_action(call):
     values = call.data.split('_')
     if 2 == len(values):
-        if '/delete' == values[0]:
+        if 'delete' == values[0]:
             delete_note(call, values[1])
-        elif '/edit' == values[0]:
+        elif 'edit' == values[0]:
             edit_note(call, values[1])
-        elif '/time' == values[0]:
+        elif 'time' == values[0]:
             time_note(call, values[1])
 
 
