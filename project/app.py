@@ -104,29 +104,52 @@ def show_all_notes(message):
     cur = db.cursor()
     cur.execute("SELECT id FROM users WHERE chat_id='%d'" % message.chat.id)
     row = cur.fetchone()
-
+    print(row)
     if row:
         cur.execute(f"SELECT id, title, notification FROM notes WHERE deleted=1 AND user_id={row[0]}")
         rows = cur.fetchall()
-
+        print(rows)
         notes = 'Список нотаток:\n\n'
         for r in rows:
             notes += f"/open_{r[0]}) {r[1]}. [{r[2]}]\n"
-
+            print(r)
+            print(notes)
+            print(rows)
+        print(rows)
         bot.send_message(message.chat.id, notes)
 
 def open_note(message, note_id):
+    print(f'OPEN_NOTE')
     keyboard = InlineKeyboardMarkup()
     b1 = InlineKeyboardButton('Нотатку', callback_data='/edit_' + note_id)
     b2 = InlineKeyboardButton('Час', callback_data='/time_' + note_id)
     b3 = InlineKeyboardButton('Видалити', callback_data='/delete_' + note_id)
     keyboard.add(b1, b2)
     keyboard.add(b3)
-
+    print(f'KEYBOARD_ACTION')
     bot.send_message(message.chat.id, f'[{note_id}]Редагувати:', reply_markup=keyboard)
 
-def edit_note(message, note_id):
-    pass
+def edit_note(call, note_id):
+
+    bot.send_message(call.message.chat.id, 'Напишіть нове повідомлення')
+    bot.register_next_step_handler_by_chat_id(call.message.chat.id, save_after_edit_note)
+
+def save_after_edit_note(call, note_id):
+
+    db = sqlite3.connect(c.DB_NAME)
+    cur = db.cursor()
+    print(call.message.text)
+    print(note_id)
+    cur.execute(f"UPDATE notes SET content={call.message.text} WHERE id={note_id}")
+    db.commit()
+
+    if cur.rowcount > 0:
+        bot.send_message(call.message.chat.id, 'Нотатка відредагована!')
+    else:
+        bot.send_message(call.message.chat.id, 'Помилка редагування >:(')
+
+    cur.close()
+    db.close()
 
 def time_note(message, note_id):
     pass
@@ -152,17 +175,25 @@ def delete_note(call, note_id):
 def handler_open_id(message):
 
     values = message.text.split('_')
+    print(f'message.text.split : {message.text.split}')
+    print(f'values : {values}')
     open_note(message, values[1])
 
 @bot.callback_query_handler(func=lambda call: True)
 def handler_note_action(call):
+    print(f'call : {call}')
+    print(f'call.data.split : {call.data.split}')
     values = call.data.split('_')
+    print(f'values : {values}')
     if 2 == len(values):
         if '/delete' == values[0]:
+            print(f'DELETE ACTION {values[1]}')
             delete_note(call, values[1])
         elif '/edit' == values[0]:
+            print(f'EDIT ACTION {values[1]}')
             edit_note(call, values[1])
         elif '/time' == values[0]:
+            print(f'TIME EDIT ACTION {values[1]}')
             time_note(call, values[1])
 
 
