@@ -81,6 +81,50 @@ def bot_start(message):
     else:
         bot.send_message(message.chat.id, "Ви вже підписані на цього бота")
 
+
+def notification():
+    db = sqlite3.connect(c.DB_NAME)
+    cur = db.cursor()
+    time3 = ['ss', 1, 2]
+    while True:
+        for i in range(20):
+            cur.execute(f"SELECT notification FROM notes WHERE id='%d'" % i)
+            row = cur.fetchone()
+            time1 = time.localtime()
+            # row[0] = row[0] - len('3')
+
+
+            if len(str(time1[1])) < 2:
+                time3[1] = '0' + str(time1[1])
+                time2 = str(time1[0]) + '-' + str(time3[1]) + '-' + str(time3[2]) + ' ' + str(time1[3]) + ':' + str(time1[4])
+                print('1' + time2)
+                if time2 == row[0]:
+                    cur.execute(f"SELECT content FROM notes WHERE id='%d'" % i)
+                    row = cur.fetchone()
+                    cur.execute(f"SELECT user_id FROM notes WHERE id='%d'" % i)
+                    user_id = cur.fetchone()
+                    cur.execute(f"SELECT chat_id FROM users WHERE id='%d'" % user_id)
+                    chat_id = user_id
+                    print(row)
+                    bot.send_message(chat_id, row)
+
+            elif len(str(time1[2])) < 2:
+                time3[2] = '0' + str(time1[2])
+                time2 = str(time1[0]) + '-' + str(time3[1]) + '-' + str(time3[2]) + ' ' + str(time1[3]) + ':' + str(time1[4])
+                print('1' + time2)
+                print(row[0])
+                if time2 == row[0]:
+                    cur.execute(f"SELECT content FROM notes WHERE id='%d'" % i)
+                    row = cur.fetchone()
+                    cur.execute(f"SELECT user_id FROM notes WHERE id='%d'" % i)
+                    user_id = cur.fetchone()
+                    cur.execute(f"SELECT chat_id FROM users WHERE id='%d'" % user_id)
+                    chat_id = user_id
+                    print(row)
+                    bot.send_message(chat_id, row)
+
+
+
 def add_note(message):
     bot.send_message(message.chat.id, "Введіть нотатку: ")
     bot.register_next_step_handler_by_chat_id(message.chat.id, save_note)
@@ -145,15 +189,12 @@ def edit_note(call, note_id, a):
     if a:
         a = False
         bot.send_message(call.message.chat.id, "Введіть нову нотатку: ")
-        print(note_id)
-        print(call)
-        print(a)
         bot.register_next_step_handler_by_chat_id(call.message.chat.id, edit_note, note_id, a)
     else:
         db = sqlite3.connect(c.DB_NAME)
         cur = db.cursor()
         print(note_id)
-        cur.execute(f"UPDATE notes SET content={call.message.text} WHERE id='%d'" % note_id)
+        cur.execute(f"UPDATE notes SET content='{call.message.text}' WHERE id='%d'" % note_id)
         db.commit()
 
         if cur.rowcount > 0:
@@ -164,8 +205,26 @@ def edit_note(call, note_id, a):
         cur.close()
         db.close()
 
-def time_note(message, note_id):
-    pass
+def time_note(call, note_id, a):
+
+    if a:
+        a = False
+        bot.send_message(call.message.chat.id, "Введіть час сповіщення: ")
+        bot.register_next_step_handler_by_chat_id(call.message.chat.id, time_note, note_id, a)
+    else:
+        db = sqlite3.connect(c.DB_NAME)
+        cur = db.cursor()
+        print(note_id)
+        cur.execute(f"UPDATE notes SET notification={call.message.text} WHERE id='%d'" % note_id)
+        db.commit()
+
+        if cur.rowcount > 0:
+            bot.send_message(call.message.chat.id, 'Сповіщення встановлено!')
+        else:
+            bot.send_message(call.message.chat.id, 'Помилка >:(')
+
+        cur.close()
+        db.close()
 
 def delete_note(call, note_id):
     db = sqlite3.connect(c.DB_NAME)
@@ -206,8 +265,8 @@ def handler_note_action(call):
             a = True
             edit_note(call, values[1], a)
         elif '/time' == values[0]:
-            print(f'TIME EDIT ACTION {values[1]}')
-            time_note(call, values[1])
+            a = True
+            time_note(call, values[1], a)
 
 
 
@@ -253,6 +312,6 @@ def message(message):
 
 
 if __name__ == '__main__':
-    # thread = threading.Thread(target=send_message)
-    # thread.start()
+    thread = threading.Thread(target=notification)
+    thread.start()
     bot.infinity_polling()
